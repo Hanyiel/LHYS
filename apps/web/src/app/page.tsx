@@ -3,7 +3,7 @@ import { ChevronRight, Mail, MapPin, Sparkles } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { getPublicProfileByAdminUserId } from "@/lib/public-profile-api";
 
-const publicProfileAdminUserId = 2;
+const publicProfileAdminUserId = 1;
 const fallbackName = "SuperLHY";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
