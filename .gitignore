@@ -1,0 +1,5 @@
+uploads/
+apps/api/uploads/
+apps/web/.next/
+apps/web/node_modules/
+apps/api/target/
