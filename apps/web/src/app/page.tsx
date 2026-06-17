@@ -1,14 +1,44 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
 import { ChevronRight, Mail, MapPin, Sparkles } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { getPublicProfileByAdminUserId } from "@/lib/public-profile-api";
+import type { PublicProfile } from "@/lib/public-profile-api";
 
 const publicProfileAdminUserId = 1;
 const fallbackName = "SuperLHY";
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
-export default async function Home() {
-  const profile = await getPublicProfileByAdminUserId(publicProfileAdminUserId).catch(() => null);
+export default function Home() {
+  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    getPublicProfileByAdminUserId(publicProfileAdminUserId)
+      .then((nextProfile) => {
+        if (active) {
+          setProfile(nextProfile);
+        }
+      })
+      .catch((cause) => {
+        if (active) {
+          setError(cause instanceof Error ? cause.message : "无法加载个人资料");
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const avatarUrl = absoluteAssetUrl(profile?.profile.avatarUrl);
   const displayName = profile?.profile.realName ?? fallbackName;
 
@@ -27,8 +57,15 @@ export default async function Home() {
                 <h1 className="text-4xl font-semibold text-zinc-950 sm:text-5xl">
                   {displayName}
                 </h1>
+                {error ? (
+                  <p className="max-w-2xl rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {error}
+                  </p>
+                ) : null}
                 <p className="max-w-2xl text-lg leading-8 text-zinc-600">
-                  {profile?.profile.headline ??
+                  {loading
+                    ? "正在加载个人资料..."
+                    : profile?.profile.headline ??
                     "全栈开发者，专注于前后端协同、数据组织与个人作品展示。"}
                 </p>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-600">
@@ -56,12 +93,11 @@ export default async function Home() {
             <div className="flex justify-center md:justify-end">
               {avatarUrl ? (
                 <div className="relative h-48 w-36 overflow-hidden">
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={avatarUrl}
                     alt={displayName}
-                    fill
-                    unoptimized
-                    className="object-cover"
+                    className="h-full w-full object-cover"
                   />
                 </div>
               ) : null}
@@ -144,7 +180,7 @@ function absoluteAssetUrl(value: string | null | undefined) {
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
-  return `${apiBaseUrl}${value.startsWith("/") ? value : `/${value}`}`;
+  return value.startsWith("/") ? value : `/${value}`;
 }
 
 function InfoCard({
