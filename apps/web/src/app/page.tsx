@@ -310,8 +310,8 @@ function TableOfContents() {
 function absoluteAssetUrl(value: string | null | undefined) {
   if (!value) return "";
   if (value.startsWith("http://") || value.startsWith("https://")) return value;
-  const backendBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"; 
   const path = value.startsWith("/") ? value : `/${value}`;
+  const backendBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
   return `${backendBaseUrl}${path}`;
 }
 
