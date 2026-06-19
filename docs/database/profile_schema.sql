@@ -44,6 +44,24 @@ CREATE TABLE IF NOT EXISTS profile_skills (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS profile_skill_items (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  profile_id BIGINT NOT NULL,
+  skill_name VARCHAR(100) NOT NULL,
+  skill_description TEXT,
+  sort_order INT NOT NULL DEFAULT 0,
+  visible BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_profile_skill_items_profile
+    FOREIGN KEY (profile_id) REFERENCES personal_profiles(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_profile_skill_items_profile_sort
+  ON profile_skill_items (profile_id, sort_order);
+
 CREATE TABLE IF NOT EXISTS project_experiences (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   profile_id BIGINT NOT NULL,
@@ -67,6 +85,24 @@ CREATE TABLE IF NOT EXISTS project_experiences (
 
 CREATE INDEX idx_project_experiences_profile_sort
   ON project_experiences (profile_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS project_links (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  project_id BIGINT NOT NULL,
+  link_name VARCHAR(100) NOT NULL,
+  link_url VARCHAR(500) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  visible BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_project_links_project
+    FOREIGN KEY (project_id) REFERENCES project_experiences(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_project_links_project_sort
+  ON project_links (project_id, sort_order);
 
 CREATE TABLE IF NOT EXISTS honor_awards (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

@@ -4,6 +4,7 @@ import type {
   HonorAward,
   PortfolioLink,
   ProjectExperience,
+  SkillItem,
   WorkExperience,
 } from "@/lib/profile-api";
 
@@ -11,6 +12,7 @@ export interface PublicProfile {
   profile: BasicProfile;
   introduction: string;
   skillsText: string;
+  skillItems: SkillItem[];
   projects: ProjectExperience[];
   honors: HonorAward[];
   workExperiences: WorkExperience[];

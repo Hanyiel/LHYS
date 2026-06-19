@@ -48,7 +48,8 @@ public class ProfileService {
         return new ProfileWorkspaceResponse(
                 profile,
                 profileId == null ? "" : findSingleText("profile_introductions", "introduction", profileId),
-                profileId == null ? "" : findSingleText("profile_skills", "skills_text", profileId),
+                "",
+                profileId == null ? List.of() : listSkillItems(profileId),
                 profileId == null ? List.of() : listProjects(profileId),
                 profileId == null ? List.of() : listHonors(profileId),
                 profileId == null ? List.of() : listWorkExperiences(profileId),
@@ -73,7 +74,8 @@ public class ProfileService {
         return new PublicProfileResponse(
                 profile,
                 findSingleText("profile_introductions", "introduction", profileId),
-                findSingleText("profile_skills", "skills_text", profileId),
+                "",
+                listVisibleSkillItems(profileId),
                 listVisibleProjects(profileId),
                 listVisibleHonors(profileId),
                 listVisibleWorkExperiences(profileId),
@@ -162,9 +164,42 @@ public class ProfileService {
         upsertSingleText("profile_introductions", "introduction", profileId, trimToEmpty(request.introduction()));
     }
 
-    public void saveSkills(Principal principal, SkillsRequest request) {
+    public SkillItemResponse createSkillItem(Principal principal, SkillItemRequest request) {
         Long profileId = currentProfileId(principal);
-        upsertSingleText("profile_skills", "skills_text", profileId, trimToEmpty(request.skillsText()));
+        Long id = insertAndReturnId("""
+                INSERT INTO profile_skill_items
+                  (profile_id, skill_name, skill_description, sort_order, visible)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                profileId,
+                trim(request.skillName()),
+                trimOptional(request.skillDescription()),
+                valueOrZero(request.sortOrder()),
+                request.visible() == null || request.visible());
+        return findSkillItem(profileId, id);
+    }
+
+    public SkillItemResponse updateSkillItem(Principal principal, Long id, SkillItemRequest request) {
+        Long profileId = currentProfileId(principal);
+        int updated = jdbcTemplate.update("""
+                UPDATE profile_skill_items
+                SET skill_name = ?, skill_description = ?, sort_order = ?, visible = ?
+                WHERE id = ? AND profile_id = ?
+                """,
+                trim(request.skillName()),
+                trimOptional(request.skillDescription()),
+                valueOrZero(request.sortOrder()),
+                request.visible() == null || request.visible(),
+                id,
+                profileId);
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Skill item not found");
+        }
+        return findSkillItem(profileId, id);
+    }
+
+    public void deleteSkillItem(Principal principal, Long id) {
+        deleteOwned("profile_skill_items", currentProfileId(principal), id);
     }
 
     public ProjectExperienceResponse createProject(Principal principal, ProjectExperienceRequest request) {
@@ -172,8 +207,8 @@ public class ProfileService {
         Long id = insertAndReturnId("""
                 INSERT INTO project_experiences
                   (profile_id, project_name, period_text, start_date, end_date, project_summary,
-                   role_description, personal_contribution, repository_url, sort_order, visible)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   role_description, personal_contribution, sort_order, visible)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 profileId,
                 trim(request.projectName()),
@@ -183,14 +218,67 @@ public class ProfileService {
                 trimOptional(request.projectSummary()),
                 trimOptional(request.roleDescription()),
                 trimOptional(request.personalContribution()),
-                trimOptional(request.repositoryUrl()),
                 valueOrZero(request.sortOrder()),
                 request.visible() == null || request.visible());
         return findProject(profileId, id);
     }
 
+    public ProjectExperienceResponse updateProject(
+            Principal principal,
+            Long id,
+            ProjectExperienceRequest request) {
+        Long profileId = currentProfileId(principal);
+        int updated = jdbcTemplate.update("""
+                UPDATE project_experiences
+                SET project_name = ?, period_text = ?, start_date = ?, end_date = ?,
+                    project_summary = ?, role_description = ?, personal_contribution = ?,
+                    sort_order = ?, visible = ?
+                WHERE id = ? AND profile_id = ?
+                """,
+                trim(request.projectName()),
+                trimOptional(request.periodText()),
+                request.startDate(),
+                request.endDate(),
+                trimOptional(request.projectSummary()),
+                trimOptional(request.roleDescription()),
+                trimOptional(request.personalContribution()),
+                valueOrZero(request.sortOrder()),
+                request.visible() == null || request.visible(),
+                id,
+                profileId);
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found");
+        }
+        return findProject(profileId, id);
+    }
+
     public void deleteProject(Principal principal, Long id) {
         deleteOwned("project_experiences", currentProfileId(principal), id);
+    }
+
+    public ProjectLinkResponse createProjectLink(
+            Principal principal,
+            Long projectId,
+            ProjectLinkRequest request) {
+        Long profileId = currentProfileId(principal);
+        requireProjectOwned(profileId, projectId);
+        Long id = insertAndReturnId("""
+                INSERT INTO project_links
+                  (project_id, link_name, link_url, sort_order, visible)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                projectId,
+                trim(request.linkName()),
+                trim(request.linkUrl()),
+                valueOrZero(request.sortOrder()),
+                request.visible() == null || request.visible());
+        return findProjectLink(projectId, id);
+    }
+
+    public void deleteProjectLink(Principal principal, Long projectId, Long linkId) {
+        Long profileId = currentProfileId(principal);
+        requireProjectOwned(profileId, projectId);
+        jdbcTemplate.update("DELETE FROM project_links WHERE id = ? AND project_id = ?", linkId, projectId);
     }
 
     public HonorAwardResponse createHonor(Principal principal, HonorAwardRequest request) {
@@ -207,6 +295,28 @@ public class ProfileService {
                 trimOptional(request.certificatePdfUrl()),
                 valueOrZero(request.sortOrder()),
                 request.visible() == null || request.visible());
+        return findHonor(profileId, id);
+    }
+
+    public HonorAwardResponse updateHonor(Principal principal, Long id, HonorAwardRequest request) {
+        Long profileId = currentProfileId(principal);
+        int updated = jdbcTemplate.update("""
+                UPDATE honor_awards
+                SET award_name = ?, awarded_date = ?, award_level = ?,
+                    certificate_pdf_url = ?, sort_order = ?, visible = ?
+                WHERE id = ? AND profile_id = ?
+                """,
+                trim(request.awardName()),
+                request.awardedDate(),
+                trimOptional(request.awardLevel()),
+                trimOptional(request.certificatePdfUrl()),
+                valueOrZero(request.sortOrder()),
+                request.visible() == null || request.visible(),
+                id,
+                profileId);
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Honor award not found");
+        }
         return findHonor(profileId, id);
     }
 
@@ -352,52 +462,128 @@ public class ProfileService {
         }
     }
 
+    private List<SkillItemResponse> listSkillItems(Long profileId) {
+        return jdbcTemplate.query("""
+                SELECT id, profile_id, skill_name, skill_description, sort_order, visible
+                FROM profile_skill_items
+                WHERE profile_id = ?
+                ORDER BY sort_order ASC, id DESC
+                """,
+                (rs, rowNum) -> new SkillItemResponse(
+                        rs.getLong("id"),
+                        rs.getLong("profile_id"),
+                        rs.getString("skill_name"),
+                        rs.getString("skill_description"),
+                        rs.getInt("sort_order"),
+                        rs.getBoolean("visible")),
+                profileId);
+    }
+
+    private List<SkillItemResponse> listVisibleSkillItems(Long profileId) {
+        return jdbcTemplate.query("""
+                SELECT id, profile_id, skill_name, skill_description, sort_order, visible
+                FROM profile_skill_items
+                WHERE profile_id = ? AND visible = TRUE
+                ORDER BY sort_order ASC, id DESC
+                """,
+                (rs, rowNum) -> new SkillItemResponse(
+                        rs.getLong("id"),
+                        rs.getLong("profile_id"),
+                        rs.getString("skill_name"),
+                        rs.getString("skill_description"),
+                        rs.getInt("sort_order"),
+                        rs.getBoolean("visible")),
+                profileId);
+    }
+
     private List<ProjectExperienceResponse> listProjects(Long profileId) {
         return jdbcTemplate.query("""
                 SELECT id, profile_id, project_name, period_text, start_date, end_date, project_summary,
-                       role_description, personal_contribution, repository_url, sort_order, visible
+                       role_description, personal_contribution, sort_order, visible
                 FROM project_experiences
                 WHERE profile_id = ?
                 ORDER BY sort_order ASC, id DESC
                 """,
-                (rs, rowNum) -> new ProjectExperienceResponse(
-                        rs.getLong("id"),
-                        rs.getLong("profile_id"),
-                        rs.getString("project_name"),
-                        rs.getString("period_text"),
-                        nullableDate(rs.getDate("start_date")),
-                        nullableDate(rs.getDate("end_date")),
-                        rs.getString("project_summary"),
-                        rs.getString("role_description"),
-                        rs.getString("personal_contribution"),
-                        rs.getString("repository_url"),
-                        rs.getInt("sort_order"),
-                        rs.getBoolean("visible")),
+                (rs, rowNum) -> {
+                    Long projectId = rs.getLong("id");
+                    return new ProjectExperienceResponse(
+                            projectId,
+                            rs.getLong("profile_id"),
+                            rs.getString("project_name"),
+                            rs.getString("period_text"),
+                            nullableDate(rs.getDate("start_date")),
+                            nullableDate(rs.getDate("end_date")),
+                            rs.getString("project_summary"),
+                            rs.getString("role_description"),
+                            rs.getString("personal_contribution"),
+                            null,
+                            listProjectLinks(projectId),
+                            rs.getInt("sort_order"),
+                            rs.getBoolean("visible"));
+                },
                 profileId);
     }
 
     private List<ProjectExperienceResponse> listVisibleProjects(Long profileId) {
         return jdbcTemplate.query("""
                 SELECT id, profile_id, project_name, period_text, start_date, end_date, project_summary,
-                       role_description, personal_contribution, repository_url, sort_order, visible
+                       role_description, personal_contribution, sort_order, visible
                 FROM project_experiences
                 WHERE profile_id = ? AND visible = TRUE
                 ORDER BY sort_order ASC, id DESC
                 """,
-                (rs, rowNum) -> new ProjectExperienceResponse(
+                (rs, rowNum) -> {
+                    Long projectId = rs.getLong("id");
+                    return new ProjectExperienceResponse(
+                            projectId,
+                            rs.getLong("profile_id"),
+                            rs.getString("project_name"),
+                            rs.getString("period_text"),
+                            nullableDate(rs.getDate("start_date")),
+                            nullableDate(rs.getDate("end_date")),
+                            rs.getString("project_summary"),
+                            rs.getString("role_description"),
+                            rs.getString("personal_contribution"),
+                            null,
+                            listVisibleProjectLinks(projectId),
+                            rs.getInt("sort_order"),
+                            rs.getBoolean("visible"));
+                },
+                profileId);
+    }
+
+    private List<ProjectLinkResponse> listProjectLinks(Long projectId) {
+        return jdbcTemplate.query("""
+                SELECT id, project_id, link_name, link_url, sort_order, visible
+                FROM project_links
+                WHERE project_id = ?
+                ORDER BY sort_order ASC, id DESC
+                """,
+                (rs, rowNum) -> new ProjectLinkResponse(
                         rs.getLong("id"),
-                        rs.getLong("profile_id"),
-                        rs.getString("project_name"),
-                        rs.getString("period_text"),
-                        nullableDate(rs.getDate("start_date")),
-                        nullableDate(rs.getDate("end_date")),
-                        rs.getString("project_summary"),
-                        rs.getString("role_description"),
-                        rs.getString("personal_contribution"),
-                        rs.getString("repository_url"),
+                        rs.getLong("project_id"),
+                        rs.getString("link_name"),
+                        rs.getString("link_url"),
                         rs.getInt("sort_order"),
                         rs.getBoolean("visible")),
-                profileId);
+                projectId);
+    }
+
+    private List<ProjectLinkResponse> listVisibleProjectLinks(Long projectId) {
+        return jdbcTemplate.query("""
+                SELECT id, project_id, link_name, link_url, sort_order, visible
+                FROM project_links
+                WHERE project_id = ? AND visible = TRUE
+                ORDER BY sort_order ASC, id DESC
+                """,
+                (rs, rowNum) -> new ProjectLinkResponse(
+                        rs.getLong("id"),
+                        rs.getLong("project_id"),
+                        rs.getString("link_name"),
+                        rs.getString("link_url"),
+                        rs.getInt("sort_order"),
+                        rs.getBoolean("visible")),
+                projectId);
     }
 
     private List<HonorAwardResponse> listHonors(Long profileId) {
@@ -527,6 +713,20 @@ public class ProfileService {
                 .orElseThrow();
     }
 
+    private SkillItemResponse findSkillItem(Long profileId, Long id) {
+        return listSkillItems(profileId).stream()
+                .filter(skill -> skill.id().equals(id))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private ProjectLinkResponse findProjectLink(Long projectId, Long id) {
+        return listProjectLinks(projectId).stream()
+                .filter(link -> link.id().equals(id))
+                .findFirst()
+                .orElseThrow();
+    }
+
     private HonorAwardResponse findHonor(Long profileId, Long id) {
         return listHonors(profileId).stream()
                 .filter(honor -> honor.id().equals(id))
@@ -589,6 +789,17 @@ public class ProfileService {
 
     private void deleteOwned(String table, Long profileId, Long id) {
         jdbcTemplate.update("DELETE FROM " + table + " WHERE id = ? AND profile_id = ?", id, profileId);
+    }
+
+    private void requireProjectOwned(Long profileId, Long projectId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM project_experiences WHERE id = ? AND profile_id = ?",
+                Integer.class,
+                projectId,
+                profileId);
+        if (count == null || count == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found");
+        }
     }
 
     private LocalDate nullableDate(Date date) {

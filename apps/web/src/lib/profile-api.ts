@@ -25,6 +25,25 @@ export interface ProjectExperience {
   roleDescription: string | null;
   personalContribution: string | null;
   repositoryUrl: string | null;
+  projectLinks: ProjectLink[];
+  sortOrder: number;
+  visible: boolean;
+}
+
+export interface SkillItem {
+  id: number;
+  profileId: number;
+  skillName: string;
+  skillDescription: string | null;
+  sortOrder: number;
+  visible: boolean;
+}
+
+export interface ProjectLink {
+  id: number;
+  projectId: number;
+  linkName: string;
+  linkUrl: string;
   sortOrder: number;
   visible: boolean;
 }
@@ -67,6 +86,7 @@ export interface ProfileWorkspace {
   profile: BasicProfile | null;
   introduction: string;
   skillsText: string;
+  skillItems: SkillItem[];
   projects: ProjectExperience[];
   honors: HonorAward[];
   workExperiences: WorkExperience[];
@@ -95,6 +115,20 @@ export interface ProjectExperienceRequest {
   roleDescription?: string;
   personalContribution?: string;
   repositoryUrl?: string;
+  sortOrder?: number;
+  visible?: boolean;
+}
+
+export interface SkillItemRequest {
+  skillName: string;
+  skillDescription?: string;
+  sortOrder?: number;
+  visible?: boolean;
+}
+
+export interface ProjectLinkRequest {
+  linkName: string;
+  linkUrl: string;
   sortOrder?: number;
   visible?: boolean;
 }
@@ -162,17 +196,40 @@ export function saveIntroduction(introduction: string) {
   });
 }
 
-export function saveSkills(skillsText: string) {
-  return apiRequest<void>("/api/admin/profile/skills", {
+export function createSkillItem(request: SkillItemRequest) {
+  return apiRequest<SkillItem>("/api/admin/profile/skill-items", {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(request),
+  });
+}
+
+export function updateSkillItem(id: number, request: SkillItemRequest) {
+  return apiRequest<SkillItem>(`/api/admin/profile/skill-items/${id}`, {
     method: "PUT",
     headers: headers(),
-    body: JSON.stringify({ skillsText }),
+    body: JSON.stringify(request),
+  });
+}
+
+export function deleteSkillItem(id: number) {
+  return apiRequest<void>(`/api/admin/profile/skill-items/${id}`, {
+    method: "DELETE",
+    headers: headers(),
   });
 }
 
 export function createProject(request: ProjectExperienceRequest) {
   return apiRequest<ProjectExperience>("/api/admin/profile/projects", {
     method: "POST",
+    headers: headers(),
+    body: JSON.stringify(request),
+  });
+}
+
+export function updateProject(id: number, request: ProjectExperienceRequest) {
+  return apiRequest<ProjectExperience>(`/api/admin/profile/projects/${id}`, {
+    method: "PUT",
     headers: headers(),
     body: JSON.stringify(request),
   });
@@ -185,9 +242,32 @@ export function deleteProject(id: number) {
   });
 }
 
+export function createProjectLink(projectId: number, request: ProjectLinkRequest) {
+  return apiRequest<ProjectLink>(`/api/admin/profile/projects/${projectId}/links`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(request),
+  });
+}
+
+export function deleteProjectLink(projectId: number, linkId: number) {
+  return apiRequest<void>(`/api/admin/profile/projects/${projectId}/links/${linkId}`, {
+    method: "DELETE",
+    headers: headers(),
+  });
+}
+
 export function createHonor(request: HonorAwardRequest) {
   return apiRequest<HonorAward>("/api/admin/profile/honors", {
     method: "POST",
+    headers: headers(),
+    body: JSON.stringify(request),
+  });
+}
+
+export function updateHonor(id: number, request: HonorAwardRequest) {
+  return apiRequest<HonorAward>(`/api/admin/profile/honors/${id}`, {
+    method: "PUT",
     headers: headers(),
     body: JSON.stringify(request),
   });

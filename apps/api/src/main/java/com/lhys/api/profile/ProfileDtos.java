@@ -11,6 +11,7 @@ record ProfileWorkspaceResponse(
         BasicProfileResponse profile,
         String introduction,
         String skillsText,
+        List<SkillItemResponse> skillItems,
         List<ProjectExperienceResponse> projects,
         List<HonorAwardResponse> honors,
         List<WorkExperienceResponse> workExperiences,
@@ -21,6 +22,7 @@ record PublicProfileResponse(
         BasicProfileResponse profile,
         String introduction,
         String skillsText,
+        List<SkillItemResponse> skillItems,
         List<ProjectExperienceResponse> projects,
         List<HonorAwardResponse> honors,
         List<WorkExperienceResponse> workExperiences,
@@ -55,7 +57,20 @@ record AvatarUploadResponse(String avatarUrl) {
 record IntroductionRequest(String introduction) {
 }
 
-record SkillsRequest(String skillsText) {
+record SkillItemRequest(
+        @NotBlank @Size(max = 100) String skillName,
+        String skillDescription,
+        Integer sortOrder,
+        Boolean visible) {
+}
+
+record SkillItemResponse(
+        Long id,
+        Long profileId,
+        String skillName,
+        String skillDescription,
+        int sortOrder,
+        boolean visible) {
 }
 
 record ProjectExperienceRequest(
@@ -82,6 +97,23 @@ record ProjectExperienceResponse(
         String roleDescription,
         String personalContribution,
         String repositoryUrl,
+        List<ProjectLinkResponse> projectLinks,
+        int sortOrder,
+        boolean visible) {
+}
+
+record ProjectLinkRequest(
+        @NotBlank @Size(max = 100) String linkName,
+        @NotBlank @Size(max = 500) String linkUrl,
+        Integer sortOrder,
+        Boolean visible) {
+}
+
+record ProjectLinkResponse(
+        Long id,
+        Long projectId,
+        String linkName,
+        String linkUrl,
         int sortOrder,
         boolean visible) {
 }

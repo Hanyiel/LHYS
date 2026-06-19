@@ -51,12 +51,26 @@ public class ProfileController {
         profileService.saveIntroduction(principal, request);
     }
 
-    @PutMapping("/skills")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void saveSkills(
+    @PostMapping("/skill-items")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SkillItemResponse createSkillItem(
             Principal principal,
-            @Valid @RequestBody SkillsRequest request) {
-        profileService.saveSkills(principal, request);
+            @Valid @RequestBody SkillItemRequest request) {
+        return profileService.createSkillItem(principal, request);
+    }
+
+    @PutMapping("/skill-items/{id}")
+    public SkillItemResponse updateSkillItem(
+            Principal principal,
+            @PathVariable Long id,
+            @Valid @RequestBody SkillItemRequest request) {
+        return profileService.updateSkillItem(principal, id, request);
+    }
+
+    @DeleteMapping("/skill-items/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteSkillItem(Principal principal, @PathVariable Long id) {
+        profileService.deleteSkillItem(principal, id);
     }
 
     @PostMapping("/projects")
@@ -67,10 +81,36 @@ public class ProfileController {
         return profileService.createProject(principal, request);
     }
 
+    @PutMapping("/projects/{id}")
+    public ProjectExperienceResponse updateProject(
+            Principal principal,
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectExperienceRequest request) {
+        return profileService.updateProject(principal, id, request);
+    }
+
     @DeleteMapping("/projects/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteProject(Principal principal, @PathVariable Long id) {
         profileService.deleteProject(principal, id);
+    }
+
+    @PostMapping("/projects/{projectId}/links")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProjectLinkResponse createProjectLink(
+            Principal principal,
+            @PathVariable Long projectId,
+            @Valid @RequestBody ProjectLinkRequest request) {
+        return profileService.createProjectLink(principal, projectId, request);
+    }
+
+    @DeleteMapping("/projects/{projectId}/links/{linkId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProjectLink(
+            Principal principal,
+            @PathVariable Long projectId,
+            @PathVariable Long linkId) {
+        profileService.deleteProjectLink(principal, projectId, linkId);
     }
 
     @PostMapping("/honors")
@@ -79,6 +119,14 @@ public class ProfileController {
             Principal principal,
             @Valid @RequestBody HonorAwardRequest request) {
         return profileService.createHonor(principal, request);
+    }
+
+    @PutMapping("/honors/{id}")
+    public HonorAwardResponse updateHonor(
+            Principal principal,
+            @PathVariable Long id,
+            @Valid @RequestBody HonorAwardRequest request) {
+        return profileService.updateHonor(principal, id, request);
     }
 
     @DeleteMapping("/honors/{id}")
